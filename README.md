@@ -1,6 +1,6 @@
-# htu21d-fjj
+# htu21d-f
 Python library for reading HTU21D-F humidity and temperature sensor via i2c.
-j
+
 **Warning**: The code is not really tested yet. Use on your own responsibility.
 
 This is a pet project as I could not find a working Python library for my RPi easily. 
@@ -13,12 +13,16 @@ The relative humidity (RH) compensation is not applied automatically. However, t
 `RH_compensated = RHmeasured + (25 - Tmeasured) * CoeffTemp`
 
 Where `CoeffTemp = -0.15 [%RH/degC]`
-jjj
+
 ## API outline
 ### Constructor
+| Name | Description |
+| --- | --- |
 | `HTU21DF(bus_no, addr)` | constructor. Needs i2c bus address and i2c address of the sensor | 
 
 ### Basic functions
+| Name | Description |
+| --- | --- |
 | `.soft_reset()` | performs soft reset (resets user register to default values) |
 | `.read_user_reg()` | reads user register (returns 1 byte) |
 | `.print_user_reg(register)` | prints debug info about the user register |
@@ -26,6 +30,8 @@ jjj
 | `.read_humidity_percent()` | performs relative humidity read, returns value in percent |
 j
 ### Additional comptations
+| Name | Description |
+| --- | --- |
 | `.compensate_humidity_percent(humidity, temperature)` | performs humidity compensation computation based on humidity mesaured and temperature measured. Returns value in percent |
 | `.compute_partial_pressure_mmHg(temp)` | computes partial pressure from ambient temperature. Returns value in mmHg |
 | `.compute_partial_pressure_Pa(temp)` | computes partial pressure from ambient temperature. Returns value in Pascasl |
