@@ -28,8 +28,8 @@ Where `CoeffTemp = -0.15 [%RH/degC]`
 | `.print_user_reg(register)` | prints debug info about the user register |
 | `.read_temp_degC()` | performs temperature read, returns value in degrees Celsius |
 | `.read_humidity_percent()` | performs relative humidity read, returns value in percent |
-j
-### Additional comptations
+
+### Additional computations
 | Name | Description |
 | --- | --- |
 | `.compensate_humidity_percent(humidity, temperature)` | performs humidity compensation computation based on humidity mesaured and temperature measured. Returns value in percent |
