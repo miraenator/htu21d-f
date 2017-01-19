@@ -1,21 +1,21 @@
 # htu21d-f
 Python library for reading HTU21D-F humidity and temperature sensor via i2c.
 
-Warning: The code is not really tested yet. Use on your own responsibility.
+**Warning**: The code is not really tested yet. Use on your own responsibility.
 
 This is a pet project as I could not find a working Python library for my RPi easily. 
 The code is inspired by the Arduino library: https://github.com/adafruit/Adafruit_HTU21DF_Library
 
 Check also the datasheet: https://cdn-shop.adafruit.com/datasheets/1899_HTU21D.pdf
 
-The relative humidity (RH) compensation is not applied automatically. However, 
-the function is available. The compensation should be performed in the temp range (0 to 80 deg C):
+The relative humidity (RH) compensation is not applied automatically. However, the function is available. The compensation should be performed in the temp range (0 to 80 deg C):
 
-RH_compensated = RHmeasured + (25 - Tmeasured) * CoeffTemp
+`RH_compensated = RHmeasured + (25 - Tmeasured) * CoeffTemp`
 
-Where CoeffTemp = -0.15 [%RH/degC]
+Where `CoeffTemp = -0.15 [%RH/degC]`
 
-API:
+## API outline
+```
 HTU21DF(bus_no, addr) -- constructor. Needs i2c bus address and i2c address of the sensor
 
 .soft_reset() -- performs soft reset (resets user register to default values)
@@ -29,9 +29,9 @@ HTU21DF(bus_no, addr) -- constructor. Needs i2c bus address and i2c address of t
 .compute_partial_pressure_Pa(temp) -- computes partial pressure from ambient temperature. Returns value in Pascasl
 .compute_dewpoint_degC(humidity, temperature) -- computes dewpoint from humidity and temperature. Returns value in degrees Celsius
 .computeCRC(data) -- computes CRC. Used for verification of the measurements
-
-Example code:
-<code>
+```
+## Example code:
+```python
 import HT21DF
 
 #Bus 1, i2c addr: 0x40. Works for me.
@@ -41,4 +41,4 @@ htu.soft_reset()
 
 print("Temp [degC]: {}".format(htu.read_temp_degC()))
 print("Rel. humidity [%]: {}".format(htu.read_humidity_percent()))
-</code>
+```
