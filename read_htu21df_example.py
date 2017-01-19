@@ -1,56 +1,55 @@
 #!/usr/bin/env python
 
+#Warning, not tested yet on real Raspberry Pi with sensor, but the HTU21DF class was tested
+#Suppose no big modifications are needed
+
+#let's pretend we are ready for Python 3
 from __future__ import print_function
 
-import BMP085
 import HTU21DF
 import math
+import time
 
-from time import time, sleep
-import sys
-from smbus import SMBus
-
-
+#For my Raspbery Pi B+ it is 1, read your docs
 BUS_NO = 1
+
+#For my device, the I2C address is 0x40
 ADDR_HTU21 = 0x40 
-ADDR_BMP085 = 0x77
 
-bmp_mode = BMP085.BMP085_ULTRAHIGHRES
-bmp = BMP085.BMP085(busnum=1, mode=bmp_mode)
+#Initialize with bus_no and ADDR
+htu = HTU21DF.HTU21DF(BUS_NO, ADDR_HTU21)
 
-htu = HTU21DF.HTU21DF(1, ADDR_HTU21)
+#Performing a soft reset (should reset the values in User register)
 htu.soft_reset()
-htu.print_user_reg(htu.read_user_reg())
 
-SEP=","
-ALT_M = 335  #measured by GPS for BB, Prague 6
-FNAME = "{}_bmp085_m{}_htu21df.csv".format(int(time()), bmp_mode)
-with open(FNAME, 'a') as f:
-  f.write("timestamp,bmp_tmp_c, pressure_pa, alt_m, sealevel_pressure_pa, htu_tmp_c, htu_rh_percent, partialpressure_mmHg, dewpoint_degC\n")
-  while True:
-    #BMP085
-    f.write("{:.2f}{}".format(time(), SEP))
-    f.write("{}{}".format(bmp.read_temperature(), SEP))
-    f.write("{}{}".format(bmp.read_pressure(), SEP))
-#    f.write("," + sensor.read_altitude().__str__())
-    f.write("{}{}".format(ALT_M, SEP))
-    f.write("{}{}".format(bmp.read_sealevel_pressure(altitude_m = ALT_M), SEP))
+#Let's print some info about the sensor. 
+#Loading into variable, so we do not have to use the I2C bus
+user_reg = htu.read_user_reg()
+htu.print_user_reg(user_reg)
 
-    #HTU21D-F
-    t_c = htu.read_temp_degC()
-    hum = htu.read_humidity_percent()
-    f.write("{}{}".format(t_c, SEP))
-    f.write("{}{}".format(hum, SEP))
-      #Partial Pressure formula from Ambient Temperature
-    A = 8.1332
-    B = 1762.39
-    C = 235.66
- 
-    PP_Tamb = math.pow(10, A - (B / (t_c + C)))
-    #Dew point Temperature (Td) formula
-    Td = -( (B / (math.log10(hum * t_c / 100.0) - A) ) + C )
-    f.write("{}{}{}{}".format(PP_Tamb, SEP, Td, ""))
+#HTU21D-F reading temperature (a CRC check is performed, but on error, only message is printed!)
+t_c = htu.read_temp_degC()  #in degree Celsius
+#HTU21D-F reading humidity (a CRC is checked; on error, only message is printed!)
+hum = htu.read_humidity_percent()  #in % (relative humidity)
 
-    f.write("\n")
-    f.flush()
-    sleep(2.5)
+#We can perform compensation. Should be in range 0 to 80 degC
+hum_c = htu.compensate_humidity_percent(hum, t_c)
+#According to the sensor documentation we can compute partial Pressure (in mmHg) and Dew Point
+PP_Tamb = htu.compute_partial_pressure_Pa(t_c)
+
+ #Dew point Temperature (Td) formula
+if t_c > 0 and t_c < 80:
+  #use compensated humidity, if in correct range
+  Td = htu.compute_dewpoint_degC(hum_c, t_c)
+else:
+  #use uncompensated humidity
+  Td = htu.compute_dewpoint_degC(hum, t_c)
+
+f.write("""HTU21D-F sensor:
+        Temp [degCelsius]: {},
+        Relative humidity [%]: {},
+        Relative humidity compensated [%]: {},
+        Partial pressure [Pa] {},
+        Dew Point [degCelsius]: {},
+        system timestamp: {}"""
+        .format(t_c, hum, hum_c, PP_Tamb, Td, time.time()))

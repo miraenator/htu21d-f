@@ -1,10 +1,10 @@
-
+#Class for reading I2C sensor HTU21D-F (Humidity, Temperature). Created for Raspbery Pi B+
 
 from smbus import SMBus
 import logging
 import time
 
-#Default HTU21D-F sensor I2C address
+# Default HTU21D-F sensor I2C address
 HTU21DF_I2CADDR = 0x40
 
 #=== User register info ===
@@ -39,21 +39,35 @@ HTU21DF_SOFTRESETCMD   = 0xFE
 #HTU21DF_READTEMPCMD_NO_HOLD = 0xF3
 #HTU21DF_READHUMCMD_NO_HOLD = 0xF5
 
+#Constants for computation Partial pressure and dewpoint
+A = 8.1332
+B = 1762.39
+C = 235.66
+
 class HTU21DF(object):
+
   def __init__(self, bus_no, address=HTU21DF_I2CADDR, **kwargs):
+    """ Constructor(I2C_bus_number [, i2c_address]
+      Creates a I2C bus object (smbus.SMBus)"""
     self._log = logging.getLogger('HTU21D-F i2c sensor')
     self._bus = SMBus(bus_no)
     self._address = address
 
   def soft_reset(self):
+    """ Performs a soft reset of the device.
+      Resets the user register to default values."""
     self._bus.write_byte(self._address, HTU21DF_SOFTRESETCMD)
     time.sleep(0.015)
 
   def read_user_reg(self):
+    """ Returns (reads) the user register. 
+    In case of writing back, make sure you preserved the reserved bits"""
     self._bus.write_byte(self._address, HTU21DF_READUSERREGCMD)
     return self._bus.read_byte(self._address)
 
   def print_user_reg(self, reg):
+    """ Prints out debug info about the user register.
+        Argument (byte): user register value"""
     resolution         = reg & 0b10000001
     otp_reload_disable = reg & 0b00000010
     heater_enable      = reg & 0b00000100
@@ -95,9 +109,14 @@ class HTU21DF(object):
     print("User_reg: {}, User_reg: {}, Resolution_temp: {}, Resolution_humidity: {}, otp_disable: {}, heater_enable: {}, reserved_bits: {}, end_of_batt_status: {}".format(hex(reg), bin(reg), rh, rt, otp_d, heat_en, bin(reserved_bits >>3), end_batt))
 
   def read_temp_degC(self, **kwargs):
+    """Perform a temperature read. MSB, LSB and a CRC is read via I2C bus.
+     A CRC is checked, but even in case of error, the valu is returned. Only 
+     an error message is printed.
+     Returns: temperature in degree Celsius"""
+   
     tr = self._bus.read_i2c_block_data(self._address, HTU21DF_READTEMPCMD, 3)
     #reads MSB, LSB, CRC8 bytes (3x8 bit)
-    #warning: LSB  last two bits are status bits: b0: not assigned, b1: 0=tempaerature meas, 1 = hum meas
+    #warning: LSB  last two bits are status bits: b0: not assigned, b1: 0=temperature meas, 1 = hum meas
     #    before converting to physical values, these must be set to '00'
     self._log.debug("Temp measurement bytes (raw): {}".format(tr))
     tv = tr[0] * 256 + (tr[1] & 0xFC)
@@ -109,6 +128,11 @@ class HTU21DF(object):
     return float(tv) * 175.72 / 65536.0 - 46.85
 
   def read_humidity_percent(self):
+    """ Performs a (relative) humidity value read. MSB, LSB and a CRC is read via I2C bus.
+      A CRC is checked, but in case of error only error message is printed, but the (incorrect)
+      value is returned.
+      "Warning: The value is not compensated.
+      Returns: relative humidity in percent"""
     hr = self._bus.read_i2c_block_data(self._address, HTU21DF_READHUMCMD, 3)
     #reads MSB, LSB, CRC8 bytes (3x8 bit)
     #warning: LSB  last two bits are status bits: b0: not assigned, b1: 0=tempaerature meas, 1 = hum meas
@@ -122,11 +146,43 @@ class HTU21DF(object):
                       .format(hex(crc8), hex(verify_crc), hr))
     return float(hv) * 125.00 / 65536.0 - 6.0
 
+  def compensate_humidity_percent(self, hum, temp):
+    """Performs relative humidity compensation computation according to the datasheet.
+     Warning: The compensation temperature range is 0 to 80 degrees Celsius
+     Args: measured_humidity (percent), temperature (degrees Celsius)
+     Returns: compensated_relative_humidity (percent)"""
+    if temp < 0 or temp > 80:
+      self._log.error("Temperature out of range 0 to 80 degC for compensation: {}".format(temp))
+    return hum + (25.0 - temp) * (-0.15)
+
+  def compute_partial_pressure_mmHg(temp):
+    """Computes partial pressure in mmHg.
+       Args: temperature (deg Celsius)
+       Returns: partial_pressure (mmHg)"""
+    return math.pow(10, A - (B / (t_c + C)))
+
+  def compute_partial_pressure_Pa(temp):
+    """Computes partial pressure in Pascals.
+       Args: temperature (deg Celsius)
+       Returns: partial_pressure (Pascal)"""
+    return 133.32239 * self.compute_partial_pressure_mmHg(temp)
+
+  def compute_dewpoint_degC(hum, temp):
+    """Computes dew point in degrees Celsius.
+       Args: relative_humidity (percent), (temperature (deg Celsius)
+       Returns: dewpoint (degrees Celsius)"""
+    pp = self.compute_partial_pressure_mmHg(temp)
+    return - ((B / (math.log10(hum * pp / 100.0) - A)) + C)
+
   def computeCRC(self, data, CRClen=8, D=int('0b100110001', 2)):
+    """Computes CRC. Tested only for CRClen=8, D=0x131.
+     Args: (MSB, LSB)
+     Returns: Computed CRC"""
+   
     DLen = D.bit_length()
 
     if isinstance(data, int):
-      if (data == 0):
+      if data == 0:
         return D & 0xFF
       else:
         b = data
@@ -140,7 +196,7 @@ class HTU21DF(object):
 
     # shift the divider to the left
     dtmp = D << (b.bit_length() - D.bit_length())
-    if (dtmp.bit_length() != b.bit_length()):
+    if dtmp.bit_length() != b.bit_length():
       self._log.error("Error: lengths differ: divlen {}, veclen{}".format(dtmp.bit_length(), b.bit_length()))
 
     c = b.bit_length()
@@ -155,6 +211,6 @@ class HTU21DF(object):
       self._log.debug("Shifting right by: {}".format(delta))
 
       c -= delta
-      if (c <= CRClen):
+      if c <= CRClen:
         return i
       dtmp >>= delta
