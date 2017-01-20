@@ -3,6 +3,7 @@
 from smbus import SMBus
 import logging
 import time
+import math
 
 # Default HTU21D-F sensor I2C address
 HTU21DF_I2CADDR = 0x40
@@ -155,19 +156,19 @@ class HTU21DF(object):
       self._log.error("Temperature out of range 0 to 80 degC for compensation: {}".format(temp))
     return hum + (25.0 - temp) * (-0.15)
 
-  def compute_partial_pressure_mmHg(temp):
+  def compute_partial_pressure_mmHg(self, temp):
     """Computes partial pressure in mmHg.
        Args: temperature (deg Celsius)
        Returns: partial_pressure (mmHg)"""
-    return math.pow(10, A - (B / (t_c + C)))
+    return math.pow(10, A - (B / (temp + C)))
 
-  def compute_partial_pressure_Pa(temp):
+  def compute_partial_pressure_Pa(self, temp):
     """Computes partial pressure in Pascals.
        Args: temperature (deg Celsius)
        Returns: partial_pressure (Pascal)"""
     return 133.32239 * self.compute_partial_pressure_mmHg(temp)
 
-  def compute_dewpoint_degC(hum, temp):
+  def compute_dewpoint_degC(self, hum, temp):
     """Computes dew point in degrees Celsius.
        Args: relative_humidity (percent), (temperature (deg Celsius)
        Returns: dewpoint (degrees Celsius)"""

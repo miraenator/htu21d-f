@@ -31,8 +31,9 @@ htu.print_user_reg(user_reg)
 t_c = htu.read_temp_degC()  #in degree Celsius
 #HTU21D-F reading humidity (a CRC is checked; on error, only message is printed!)
 hum = htu.read_humidity_percent()  #in % (relative humidity)
+print("Values reaad: Temp [degC]: {}, RH [%] {}".format(t_c, hum))
 
-#We can perform compensation. Should be in range 0 to 80 degC
+#We can perform compensation. Should be performed in range 0 to 80 degC
 hum_c = htu.compensate_humidity_percent(hum, t_c)
 #According to the sensor documentation we can compute partial Pressure (in mmHg) and Dew Point
 PP_Tamb = htu.compute_partial_pressure_Pa(t_c)
@@ -45,7 +46,7 @@ else:
   #use uncompensated humidity
   Td = htu.compute_dewpoint_degC(hum, t_c)
 
-f.write("""HTU21D-F sensor:
+print("""HTU21D-F sensor:
         Temp [degCelsius]: {},
         Relative humidity [%]: {},
         Relative humidity compensated [%]: {},
