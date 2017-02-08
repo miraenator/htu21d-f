@@ -5,7 +5,7 @@ Python library for reading HTU21D-F humidity and temperature sensor via i2c.
 
 This is a pet project as I could not find a working Python library for my RPi easily. 
 The code is inspired by the Arduino library: https://github.com/adafruit/Adafruit_HTU21DF_Library
-jjj
+
 Check also the datasheet: https://cdn-shop.adafruit.com/datasheets/1899_HTU21D.pdf
 
 The relative humidity (RH) compensation is not applied automatically. However, the function is available. The compensation should be performed in the temp range (0 to 80 deg C):
@@ -38,7 +38,7 @@ Where `CoeffTemp = -0.15 [%RH/degC]`
 | `.compute_dewpoint_degC(humidity, temperature)` | computes dewpoint from humidity and temperature. Returns value in degrees Celsius |
 | `.computeCRC(data)` | computes CRC. Used for verification of the measurements |
 
-## Example code:
+## Example code
 ```python
 import HT21DF
 
@@ -49,4 +49,22 @@ htu.soft_reset()
 
 print("Temp [degC]: {}".format(htu.read_temp_degC()))
 print("Rel. humidity [%]: {}".format(htu.read_humidity_percent()))
+```
+## Installation (Raspbian (Debian Jessie, maybe Ubuntu))
+```bash
+#Under root
+sudo apt-get install python python-smbus
+sudo apt-get install git
+
+#clone the repository
+git clone 'https://github.com/bursam/htu21d-f.git'
+
+#Change to the directory and run the example
+cd htu21d-f
+python read_htu21df_example.py
+
+#alternatively, you can set the execution permission
+chmod u+x ./read_htu21df_example.py
+#and from then you can run it as an executable file
+./read_htu21df_example.py
 ```
